@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G-PAY | Premium Streamer Platform & OBS Overlay</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@300;400;600;700;900&family=Moul&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        body {
+            font-family: 'Kantumruy Pro', sans-serif;
+            transition: background-color 0.3s ease;
+        }
+        .khmer-moul {
+            font-family: 'Moul', cursive;
+        }
+        .tech-mono {
+            font-family: 'Share Tech Mono', monospace;
+        }
+        
+        .text-outline-sharp {
+            text-shadow: 
+                -2px -2px 0 #000,  
+                 2px -2px 0 #000,
+                -2px  2px 0 #000,
+                 2px  2px 0 #000,
+                -3px  3px 5px rgba(0, 0, 0, 0.9);
+        }
+
+        .color-gold { color: #fbbf24; }
+        .color-emerald { color: #10b981; }
+        .color-fuchsia { color: #d946ef; }
+
+        @keyframes rank-swap {
+            0% { transform: translateY(15px) scale(0.95); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .animate-rank {
+            animation: rank-swap 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes text-pop-in {
+            0% { transform: scale(0.85) translateY(30px); opacity: 0; }
+            15% { transform: scale(1.03) translateY(-5px); opacity: 1; }
+            20% { transform: scale(1) translateY(0); opacity: 1; }
+            90% { transform: scale(1) translateY(0); opacity: 1; }
+            100% { transform: scale(0.9) translateY(-25px); opacity: 0; }
+        }
+        .alert-text-active {
+            animation: text-pop-in 8s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+    </style>
+</head>
+<body class="bg-[#090d16] text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <div id="main-platform-view" class="flex-grow flex flex-col justify-between">
+        
+        <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-gradient-to-tr from-violet-600 to-fuchsia-600 p-2 rounded-lg text-white font-bold text-xl tracking-wider shadow-lg shadow-violet-500/30">
+                        <i class="fa-solid fa-gamepad mr-1"></i> G-PAY
+                    </div>
+                    <span class="text-xl font-bold text-white hidden sm:block">GAMER<span class="text-violet-500">PAY</span></span>
+                </div>
+
+                <nav class="flex items-center space-x-2">
+                    <div id="admin-navigation-items" class="flex items-center space-x-1 sm:space-x-2">
+                        <button id="btn-dashboard-tab" onclick="switchTab('dashboard-tab')" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-violet-600 text-white shadow-md shadow-violet-600/20">
+                            <i class="fa-solid fa-chart-line mr-1"></i> ផ្ទាំងគ្រប់គ្រង (Dashboard)
+                        </button>
+                        <button onclick="goToOverlayView()" class="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 text-violet-400 border border-violet-500/30 hover:border-violet-500 hover:bg-violet-950/20">
+                            <i class="fa-solid fa-desktop mr-1"></i> OBS Link
+                        </button>
+                    </div>
+
+                    <div id="supporter-page-tag" class="hidden bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 px-3.5 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Supporter View
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <div id="db-loader" class="mb-6 p-3 bg-violet-950/40 border border-violet-800/40 rounded-xl flex items-center justify-between text-xs text-violet-300">
+                <div class="flex items-center gap-2">
+                    <i id="db-loader-icon" class="fa-solid fa-circle-notch animate-spin text-sm"></i>
+                    <span id="db-loader-text">កំពុងភ្ជាប់ទៅកាន់ប្រព័ន្ធផ្ទុកទិន្នន័យពពក (Cloud Syncing)...</span>
+                </div>
+                <span class="bg-violet-900/40 px-2 py-0.5 rounded text-violet-400 font-mono text-[10px]">Real-time Database</span>
+            </div>
+
+            <div id="donate-tab" class="tab-content hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-violet-950/20 p-6 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center gap-6">
+                        <div class="relative">
+                            <img src="https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=150&auto=format&fit=crop&q=80" alt="Streamer Profile" class="w-24 h-24 rounded-full border-4 border-violet-500 object-cover shadow-lg shadow-violet-500/20">
+                            <span class="absolute bottom-1 right-1 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider animate-pulse border-2 border-slate-900">Live</span>
+                        </div>
+                        <div class="text-center sm:text-left space-y-2 flex-grow">
+                            <h1 class="text-2xl font-bold text-white flex items-center justify-center sm:justify-start gap-2">
+                                Bro Rith Gaming <i class="fa-solid fa-circle-check text-blue-400 text-lg"></i>
+                            </h1>
+                            <p class="text-slate-400 text-sm">សូមស្វាគមន៍មកកាន់ទំព័រឧបត្ថម្ភផ្លូវការរបស់ខ្ញុំ! គ្រប់ការឧបត្ថម្ភរបស់បងប្អូនទាំងអស់នឹងជួយគាំទ្រដល់ការអភិវឌ្ឍគុណភាពនៃការឡាយផ្ទាល់។</p>
+                            <div class="flex flex-wrap justify-center sm:justify-start gap-3 pt-1">
+                                <span class="bg-slate-800 text-slate-300 text-xs px-3 py-1.5 rounded-full"><i class="fa-solid fa-gamepad mr-1 text-violet-400"></i> MLBB & PUBG Mobile</span>
+                                <span class="bg-slate-800 text-slate-300 text-xs px-3 py-1.5 rounded-full"><i class="fa-solid fa-users mr-1 text-sky-400"></i> 150K Followers</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-800 space-y-6">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <span class="p-2 bg-violet-600/10 rounded-lg text-violet-400"><i class="fa-solid fa-heart"></i></span>
+                            ផ្ញើការឧបត្ថម្ភរបស់អ្នកនៅទីនេះ
+                        </h2>
+
+                        <form id="donationForm" onsubmit="handleDonationSubmit(event)" class="space-y-6">
+                            <div class="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-300 mb-2">ឈ្មោះរបស់អ្នក (រហស្សនាម)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500"><i class="fa-solid fa-user"></i></span>
+                                        <input type="text" id="donorName" required placeholder="ឧ. Pro Gamer KH" class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-300 mb-2">ជ្រើសរើសចំនួនទឹកប្រាក់ឧបត្ថម្ភ ($ USD)</label>
+                                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                                    <button type="button" onclick="selectAmount(2)" class="amount-btn py-3 bg-slate-950 border border-slate-800 hover:border-violet-600 hover:bg-violet-950/20 text-white font-bold rounded-xl transition-all">$2.00</button>
+                                    <button type="button" onclick="selectAmount(5)" class="amount-btn py-3 bg-slate-950 border border-slate-800 hover:border-violet-600 hover:bg-violet-950/20 text-white font-bold rounded-xl transition-all">$5.00</button>
+                                    <button type="button" onclick="selectAmount(10)" class="amount-btn py-3 bg-slate-950 border border-slate-800 hover:border-violet-600 hover:bg-violet-950/20 text-white font-bold rounded-xl transition-all">$10.00</button>
+                                    <button type="button" onclick="selectAmount(25)" class="amount-btn py-3 bg-slate-950 border border-slate-800 hover:border-violet-600 hover:bg-violet-950/20 text-white font-bold rounded-xl transition-all">$25.00</button>
+                                </div>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400 font-bold">$</span>
+                                    <input type="number" id="customAmount" min="1" step="0.5" placeholder="បញ្ជាក់ចំនួនទឹកប្រាក់ផ្សេងទៀត..." oninput="clearAmountSelection()" class="w-full pl-8 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent font-bold text-lg transition-all">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-300 mb-2">សារគាំទ្រ ឬជូនពរ (នឹងលោតបង្ហាញលើ Live)</label>
+                                <div class="relative">
+                                    <span class="absolute top-3 left-3 text-slate-500"><i class="fa-solid fa-comment-dots"></i></span>
+                                    <textarea id="donorMessage" rows="3" placeholder="សរសេរសារគាំទ្ររបស់អ្នកនៅទីនេះ..." class="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"></textarea>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-300 mb-3">ជ្រើសរើសមធ្យោបាយទូទាត់</label>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <label class="payment-method-option relative flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer hover:border-blue-500 transition-all">
+                                        <input type="radio" name="payment_method" value="ABA" checked class="sr-only">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs tracking-wider">ABA</div>
+                                            <div>
+                                                <p class="font-bold text-sm text-white">ABA Pay</p>
+                                                <p class="text-xs text-slate-500">ទូទាត់រហ័សតាមគណនី ABA</p>
+                                            </div>
+                                        </div>
+                                        <div class="check-icon text-blue-500 opacity-100"><i class="fa-solid fa-circle-check"></i></div>
+                                    </label>
+                                    <label class="payment-method-option relative flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer hover:border-yellow-600 transition-all">
+                                        <input type="radio" name="payment_method" value="ACLEDA" class="sr-only">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-10 h-10 rounded-lg bg-yellow-600 flex items-center justify-center text-white font-bold text-xs tracking-wider">ACL</div>
+                                            <div>
+                                                <p class="font-bold text-sm text-white">ACLEDA ToanChet</p>
+                                                <p class="text-xs text-slate-500">ទូទាត់តាមធនាគារអេស៊ីលីដា</p>
+                                            </div>
+                                        </div>
+                                        <div class="check-icon text-yellow-500 opacity-0"><i class="fa-solid fa-circle-check"></i></div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold rounded-xl text-lg hover:from-violet-700 hover:to-fuchsia-700 transition-all duration-200 transform active:scale-[0.98] shadow-lg shadow-violet-600/30 flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-circle-dollar-to-slot"></i> ឧបត្ថម្ភគាំទ្រភ្លាមៗ
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-bullseye text-violet-500"></i> ទិសដៅឧបត្ថម្ភ (Stream Goal)
+                            </h3>
+                            <span id="goal-percentage" class="text-xs bg-violet-600/20 text-violet-400 px-2.5 py-1 rounded-full font-bold">0%</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-400">ទិញកៅអីហ្គេមថ្មី (Gaming Chair)</span>
+                                <span id="goal-fraction-display" class="text-white font-bold">$0.00 / $250.00</span>
+                            </div>
+                            <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden">
+                                <div id="goal-progress-bar" class="bg-gradient-to-r from-violet-500 to-fuchsia-500 h-full rounded-full transition-all duration-1000" style="width: 0%;"></div>
+                            </div>
+                            <p id="goal-status-text" class="text-xs text-slate-500 text-right">នៅសល់តែ $250.00 ទៀតប៉ុណ្ណោះ!</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                        <h3 class="font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-crown text-yellow-500"></i> អ្នកឧបត្ថម្ភកំពូល (Top Donations)
+                        </h3>
+                        <div class="space-y-3" id="leaderboard-list">
+                            <div class="text-center py-6 text-sm text-slate-500">មិនទាន់មានអ្នកឧបត្ថម្ភកំពូលនៅឡើយទេ</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboard-tab" class="tab-content hidden space-y-6">
+                
+                <div id="custom-firebase-setup-card" class="bg-slate-900 p-6 rounded-2xl border border-yellow-600/30 space-y-4 shadow-lg shadow-yellow-500/5">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-yellow-500 flex items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i> ការតំឡើងប្រព័ន្ធ Firebase ផ្ទាល់ខ្លួន (សម្រាប់ GitHub Pages)
+                        </h3>
+                        <span class="text-[10px] bg-yellow-500/10 text-yellow-400 px-2.5 py-1 rounded-full font-bold">កុំកែប្រែកូដ</span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed">
+                        សូមយក **Firebase Config (JSON)** ពីគម្រោង Firebase ផ្ទាល់ខ្លួនរបស់បងមកដាក់នៅទីនេះ ដើម្បីឱ្យប្រព័ន្ធបាញ់លុយ និងប្រព័ន្ធលោត Alert ដំណើរការរួមគ្នាពិតៗ។
+                    </p>
+                    <div class="space-y-3">
+                        <textarea id="custom-firebase-json-input" rows="3" placeholder='{"apiKey": "AIzaSy...", "authDomain": "...", "projectId": "...", "storageBucket": "...", "messagingSenderId": "...", "appId": "..."}' class="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-300 font-mono focus:outline-none focus:ring-1 focus:ring-yellow-500"></textarea>
+                        <div class="flex justify-end gap-2">
+                            <button onclick="clearCustomFirebaseConfig()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs transition-colors">លុបការកំណត់</button>
+                            <button onclick="saveCustomFirebaseConfig()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-slate-950 font-black rounded-lg text-xs transition-colors">រក្សាទុកប្រព័ន្ធ Firebase</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+                    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex items-center justify-between">
+                        <div class="space-y-1">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ប្រាក់ឧបត្ថម្ភសរុប (Total Revenue)</p>
+                            <h3 id="stat-total-revenue" class="text-2xl font-bold text-white">$0.00</h3>
+                        </div>
+                        <div class="p-3 bg-violet-600/10 text-violet-400 rounded-xl"><i class="fa-solid fa-wallet text-xl"></i></div>
+                    </div>
+                    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex items-center justify-between">
+                        <div class="space-y-1">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">ចំនួនដងឧបត្ថម្ភ (Total Count)</p>
+                            <h3 id="stat-total-donations" class="text-2xl font-bold text-white">0 ដង</h3>
+                        </div>
+                        <div class="p-3 bg-emerald-600/10 text-emerald-400 rounded-xl"><i class="fa-solid fa-circle-dollar-to-slot text-xl"></i></div>
+                    </div>
+                    <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 flex items-center justify-between">
+                        <div class="space-y-1">
+                            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">គោលដៅបច្ចុប្បន្ន (Current Goal)</p>
+                            <h3 id="stat-goal-progress" class="text-2xl font-bold text-white">$0.00</h3>
+                        </div>
+                        <div class="p-3 bg-sky-600/10 text-sky-400 rounded-xl"><i class="fa-solid fa-bullseye text-xl"></i></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-history text-violet-500"></i> ប្រវត្តិនៃការឧបត្ថម្ភទាំងអស់
+                            </h3>
+                            <button onclick="confirmClearHistory()" class="text-xs text-red-500 hover:text-red-400 flex items-center gap-1">
+                                <i class="fa-solid fa-trash-can"></i> សម្អាតទិន្នន័យទាំងអស់
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-sm text-slate-300">
+                                <thead class="text-xs text-slate-400 uppercase bg-slate-950 rounded-lg">
+                                    <tr>
+                                        <th class="px-4 py-3">ឈ្មោះ</th>
+                                        <th class="px-4 py-3">វិធីសាស្ត្រ</th>
+                                        <th class="px-4 py-3">ចំនួន</th>
+                                        <th class="px-4 py-3">សារ</th>
+                                        <th class="px-4 py-3">កាលបរិច្ឆេទ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-history-body" class="divide-y divide-slate-800">
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">មិនទាន់មានទិន្នន័យនៅឡើយទេ</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                            <h3 class="font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-network-wired text-violet-500"></i> អាសយដ្ឋានតំណភ្ជាប់ប្រព័ន្ធ
+                            </h3>
+                            <div class="space-y-4">
+                                <div class="p-3 bg-violet-950/20 border border-violet-800/20 rounded-xl space-y-2">
+                                    <p class="text-xs text-slate-400 leading-relaxed">
+                                        <strong class="text-violet-400">របៀបប្រើ៖</strong> លោកអ្នកអាចចម្លងលីងឧបត្ថម្ភ ដើម្បីចែករំលែកទៅកាន់អ្នកគាំទ្ររបស់អ្នក។
+                                    </p>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="block text-xs text-slate-400 font-semibold">១. លីងសម្រាប់អ្នកគាំទ្រ (Supporter Link)</label>
+                                    <div class="flex">
+                                        <input id="supporter-link-input" type="text" readonly class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-l-lg text-xs text-emerald-400 font-mono focus:outline-none">
+                                        <button onclick="copyToClipboard('supporter-link-input')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 rounded-r-lg transition-colors text-xs font-bold"><i class="fa-solid fa-copy"></i></button>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <label class="block text-xs text-slate-400 font-semibold">២. លីង OBS Live Overlay URL</label>
+                                    <div class="flex">
+                                        <input id="obs-link-input" type="text" readonly class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-l-lg text-xs text-violet-400 font-mono focus:outline-none">
+                                        <button onclick="copyToClipboard('obs-link-input')" class="bg-violet-600 hover:bg-violet-700 text-white px-3 rounded-r-lg transition-colors text-xs font-bold"><i class="fa-solid fa-copy"></i></button>
+                                    </div>
+                                </div>
+
+                                <button onclick="simulateTestAlert()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-bullhorn text-violet-400 animate-bounce"></i> សាកល្បងលោត Alert ទៅកាន់ OBS
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                            <h3 class="font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-sliders text-violet-500"></i> កំណត់ទឹកប្រាក់ទិសដៅ (Stream Goal)
+                            </h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-1">ចំនួនទឹកប្រាក់គោលដៅសរុប ($)</label>
+                                    <div class="flex gap-2">
+                                        <input type="number" id="input-goal-target" min="10" placeholder="ឧ. 250" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-violet-500">
+                                        <button onclick="updateGoalTargetInDb()" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-lg text-xs transition-colors">រក្សាទុក</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="border-t border-slate-800 bg-slate-950 py-6 text-center text-xs text-slate-500 space-y-1">
+            <p>&copy; 2026 G-PAY. រក្សាសិទ្ធិគ្រប់យ៉ាងដោយ ក្រុមអ្នកអភិវឌ្ឍន៍ខ្មែរ។</p>
+        </footer>
+
+    </div>
+
+    <div id="obs-overlay-view" class="hidden fixed inset-0 w-full h-full bg-transparent overflow-hidden pointer-events-none p-8 flex flex-col justify-between">
+        <div class="w-full flex justify-between items-start">
+            <div id="obs-leaderboard" class="w-[390px] bg-slate-950/85 backdrop-blur-md rounded-3xl p-5 border border-slate-800/85 shadow-2xl space-y-4 pointer-events-auto">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div class="flex items-center space-x-2">
+                        <div class="bg-gradient-to-tr from-yellow-500 to-amber-600 p-1.5 rounded-lg text-slate-950 flex items-center justify-center">
+                            <i class="fa-solid fa-crown text-sm animate-bounce"></i>
+                        </div>
+                        <div>
+                            <h1 class="khmer-moul text-[11px] text-yellow-500 uppercase tracking-widest leading-none">អ្នកឧបត្ថម្ភកំពូល</h1>
+                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider tech-mono">TOP DONATIONS</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1 bg-red-950/50 border border-red-800/40 px-2.5 py-0.5 rounded-full">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>
+                        <span class="text-[8px] font-black text-red-400 uppercase tracking-wider">Live</span>
+                    </div>
+                </div>
+
+                <div id="podium-container" class="space-y-3.5">
+                    <div class="space-y-2">
+                        <div class="h-14 bg-slate-900/60 rounded-xl animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full max-w-2xl flex flex-col items-center pt-24">
+                <div id="obs-alert-box" class="hidden pointer-events-auto max-w-2xl w-full text-center relative">
+                    <div class="space-y-4 alert-text-active relative z-10 text-outline-sharp">
+                        <div class="text-sm font-black color-fuchsia uppercase tracking-[0.25em]">
+                            <i class="fa-solid fa-heart animate-pulse mr-1.5"></i> ឧបត្ថម្ភថ្មី (NEW DONATION!)
+                        </div>
+                        <h1 class="text-3xl font-black text-white leading-normal">
+                            អរគុណបង <span class="text-4xl font-extrabold color-gold px-1" id="obs-alert-donor-name">...</span> សម្រាប់បរិច្ចាក
+                        </h1>
+                        <div class="py-1">
+                            <span class="text-6xl font-black color-emerald tech-mono" id="obs-alert-donor-amount">...</span>
+                        </div>
+                        <div class="pt-2">
+                            <p class="text-slate-100 text-lg font-bold tracking-wide italic leading-relaxed px-6 max-w-xl mx-auto" id="obs-alert-donor-message">...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full flex justify-center pb-6">
+            <div class="w-full max-w-2xl bg-slate-950/90 border border-slate-800/80 p-4 rounded-2xl shadow-xl flex flex-col space-y-2 pointer-events-auto">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-bullseye text-violet-500"></i> ទិសដៅឧបត្ថម្ភការឡាយ (STREAM GOAL)
+                    </span>
+                    <span id="obs-goal-percentage" class="bg-violet-600 text-white font-bold px-2 py-0.5 rounded text-[11px]">0%</span>
+                </div>
+                <div class="relative w-full bg-slate-900 h-6 rounded-lg overflow-hidden border border-slate-800">
+                    <div id="obs-goal-bar-fill" class="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-400 h-full transition-all duration-1000" style="width: 0%;"></div>
+                    <div class="absolute inset-0 flex items-center justify-center text-xs font-bold text-white shadow-sm font-mono" id="obs-goal-fraction">$0.00 / $250.00</div>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="exitOverlayView()" class="fixed top-4 left-4 bg-slate-900/80 border border-slate-800 text-slate-400 text-xs px-3 py-1.5 rounded-lg pointer-events-auto hover:text-white transition-all flex items-center gap-1">
+            <i class="fa-solid fa-arrow-left"></i> ត្រឡប់ទៅកម្មវិធីវិញ
+        </button>
+    </div>
+
+    <div id="paymentModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl relative">
+            <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                <div class="flex items-center space-x-3">
+                    <div id="payment-logo-container" class="w-9 h-9 rounded-lg flex items-center justify-center font-bold text-xs"></div>
+                    <div>
+                        <h4 class="font-bold text-white" id="payment-provider-title">ទូទាត់រហ័ស</h4>
+                        <p class="text-[10px] text-slate-500">ប្រព័ន្ធទូទាត់សាកល្បង</p>
+                    </div>
+                </div>
+                <button onclick="closePaymentModal()" class="text-slate-400 hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="p-6 text-center space-y-6">
+                <div class="space-y-1">
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold">ចំនួនទឹកប្រាក់ទូទាត់</p>
+                    <p class="text-3xl font-extrabold text-white" id="payment-amount-display">$0.00</p>
+                </div>
+
+                <div class="relative inline-block bg-white p-3 rounded-xl shadow-inner mx-auto">
+                    <svg class="w-40 h-40 mx-auto text-slate-900" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M5 5h30v10H15v20H5V5zm60 0h30v30H85V15H65V5zM5 65h10v20h20v10H5V65zm80 0h10v30H65v-10h20V65z" fill="currentColor"/>
+                        <rect x="12" y="12" width="16" height="16" rx="2" stroke="currentColor" stroke-width="4" fill="none"/>
+                        <rect x="16" y="16" width="8" height="8" fill="currentColor"/>
+                        <rect x="72" y="12" width="16" height="16" rx="2" stroke="currentColor" stroke-width="4" fill="none"/>
+                        <rect x="76" y="16" width="8" height="8" fill="currentColor"/>
+                        <rect x="12" y="72" width="16" height="16" rx="2" stroke="currentColor" stroke-width="4" fill="none"/>
+                        <rect x="16" y="76" width="8" height="8" fill="currentColor"/>
+                    </svg>
+                    <div class="absolute left-3 right-3 h-0.5 bg-violet-500 animate-bounce" style="top: 25%; animation-duration: 2.5s;"></div>
+                </div>
+
+                <div class="space-y-2 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs text-left">
+                    <div class="flex justify-between"><span class="text-slate-400">អ្នកទទួល (Streamer)</span><span class="text-white font-semibold">Bro Rith Gaming</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">លេខយោងប្រតិបត្តិការ</span><span class="text-white font-mono" id="payment-ref-id">#GP-XXXX</span></div>
+                </div>
+            </div>
+
+            <div class="p-5 bg-slate-950/50 border-t border-slate-800 flex gap-3">
+                <button onclick="closePaymentModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded-xl text-xs transition-all">បោះបង់</button>
+                <button onclick="confirmSimulatedPayment()" class="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/20">ខ្ញុំបានទូទាត់រួចហើយ</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastMessage" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-full font-bold shadow-lg shadow-emerald-600/30 flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none text-sm">
+        <i class="fa-solid fa-circle-check"></i> <span id="toast-text">ជោគជ័យ!</span>
+    </div>
+
+    <script>
+        let appId = "gpay-streamer-donation-app";
+        let donationsCollectionPath = `artifacts/${appId}/public/data/donations`;
+        let goalConfigDocPath = `artifacts/${appId}/public/data/stream_goal/config/current`;
+
+        let db = null; let auth = null; let currentUser = null;
+        let selectedPredefinedAmount = 0; let pendingTransaction = null;
+        let speechSynth = window.speechSynthesis || null; let currentView = 'admin';
+
+        const localConfigKey = "gpay_custom_firebase_json";
+        const defaultSandboxConfig = {
+            apiKey: "", authDomain: "gamerpay-kh.firebaseapp.com",
+            projectId: "gamerpay-kh", storageBucket: "gamerpay-kh.appspot.com",
+            messagingSenderId: "1234567890", appId: "1:1234:web:abcd"
+        };
+
+        window.onload = async function() {
+            const currentBaseUrl = window.location.origin + window.location.pathname;
+            const urlParams = new URLSearchParams(window.location.search);
+            const pageParam = urlParams.get('page');
+            const viewParam = urlParams.get('view');
+
+            document.getElementById('supporter-link-input').value = currentBaseUrl + "?page=donate";
+            document.getElementById('obs-link-input').value = currentBaseUrl + "?view=overlay";
+
+            if (viewParam === 'overlay') { currentView = 'overlay'; goToOverlayView(); }
+            else if (pageParam === 'donate') { currentView = 'donate'; setupSupporterOnlyView(); }
+            else { currentView = 'admin'; setupAdminOnlyView(); }
+
+            let activeConfig = defaultSandboxConfig;
+            const savedCustomJson = localStorage.getItem(localConfigKey);
+            if (savedCustomJson) {
+                try {
+                    activeConfig = JSON.parse(savedCustomJson);
+                    document.getElementById('custom-firebase-json-input').value = savedCustomJson;
+                } catch(e) { console.error(e); }
+            }
+
+            try {
+                if (firebase.apps.length === 0) {
+                    const app = firebase.initializeApp(activeConfig);
+                    auth = firebase.auth(app); db = firebase.firestore(app);
+                } else {
+                    auth = firebase.auth(); db = firebase.firestore();
+                }
+                await initializeSecureAuth();
+            } catch (error) {
+                document.getElementById('db-loader-icon').className = "fa-solid fa-triangle-exclamation text-yellow-500 animate-pulse";
+                document.getElementById('db-loader-text').innerText = "ប្រព័ន្ធដំណើរការសាកល្បងលំនាំដើម (Offline/Sandbox Mode)";
+                loadDemoLocalData();
+            }
+        };
+
+        async function initializeSecureAuth() {
+            if (!auth) return;
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('db-loader-icon').className = "fa-solid fa-circle-check text-emerald-400";
+                    document.getElementById('db-loader-text').innerText = "ប្រព័ន្ធទិន្នន័យពពក Cloud Sync ដំណើរការជោគជ័យ!";
+                    startRealtimeDataListeners();
+                }
+            });
+            try { await auth.signInAnonymously(); } catch(e) { console.warn(e); }
+        }
+
+        function saveCustomFirebaseConfig() {
+            const rawJson = document.getElementById('custom-firebase-json-input').value.trim();
+            if (!rawJson) { showToast("សូមបញ្ចូលកូដទិន្នន័យ Firebase JSON!", "error"); return; }
+            try {
+                JSON.parse(rawJson);
+                localStorage.setItem(localConfigKey, rawJson);
+                showToast("រក្សាទុកជោគជ័យ! កំពុងសាកល្បងដំណើរការឡើងវិញ...");
+                setTimeout(() => { window.location.reload(); }, 1500);
+            } catch(e) { showToast("ទម្រង់ JSON មិនត្រឹមត្រូវទេ!", "error"); }
+        }
+
+        function clearCustomFirebaseConfig() {
+            localStorage.removeItem(localConfigKey);
+            showToast("បានលុបការកំណត់! កំពុងដំណើរការឡើងវិញ...");
+            setTimeout(() => { window.location.reload(); }, 1500);
+        }
+
+        function loadDemoLocalData() {
+            const demoDonations = [
+                { donor: "Bro Seyha", amount: 25.00, message: "លេងហ្គេមបាញ់គ្នាខ្លាំងណាស់បង! ឧបត្ថម្ភជូន!", method: "ABA", timestamp: new Date() }
+            ];
+            onDonationsDataUpdated(demoDonations);
+        }
+
+        function setupSupporterOnlyView() {
+            document.getElementById('admin-navigation-items').classList.add('hidden');
+            document.getElementById('supporter-page-tag').classList.remove('hidden');
+            document.getElementById('custom-firebase-setup-card').classList.add('hidden');
+            switchTab('donate-tab'); 
+        }
+
+        function setupAdminOnlyView() {
+            document.getElementById('admin-navigation-items').classList.remove('hidden');
+            document.getElementById('supporter-page-tag').classList.add('hidden');
+            document.getElementById('custom-firebase-setup-card').classList.remove('hidden');
+            switchTab('dashboard-tab'); 
+        }
+
+        function startRealtimeDataListeners() {
+            if (!db || !currentUser) return;
+            db.collection(donationsCollectionPath).onSnapshot((querySnapshot) => {
+                const donations = [];
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    donations.push({ id: doc.id, ...data, timestamp: data.timestamp ? data.timestamp.toDate() : new Date() });
+                });
+                donations.sort((a, b) => b.timestamp - a.timestamp);
+                onDonationsDataUpdated(donations);
+            });
+
+            db.doc(goalConfigDocPath).onSnapshot((doc) => {
+                if (doc.exists) { updateStreamGoalUI(doc.data().targetValue || 250); }
+                else { updateStreamGoalUI(250); }
+            });
+        }
+
+        let currentLoadedDonations = [];
+        function onDonationsDataUpdated(donations) {
+            if (currentLoadedDonations.length > 0 && donations.length > currentLoadedDonations.length) {
+                triggerLiveAlert(donations[0]);
+            }
+            currentLoadedDonations = donations;
+            let sumRevenue = 0;
+            donations.forEach(d => { sumRevenue += d.amount; });
+
+            document.getElementById('stat-total-revenue').innerText = `$${sumRevenue.toFixed(2)}`;
+            document.getElementById('stat-total-donations').innerText = `${donations.length} ដង`;
+            document.getElementById('stat-goal-progress').innerText = `$${sumRevenue.toFixed(2)}`;
+
+            renderDashboardTable(donations);
+            calculateAndRenderLeaderboard(donations);
+            updateGoalProgressVisuals(sumRevenue);
+        }
+
+        function renderDashboardTable(donations) {
+            const tbody = document.getElementById('dashboard-history-body');
+            if (!tbody) return;
+            if (donations.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-slate-500">មិនទាន់មានទិន្នន័យនៅឡើយទេ</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = donations.map(item => {
+                let badgeClass = item.method === 'ACLEDA' ? "bg-yellow-600/20 text-yellow-500" : "bg-blue-600/20 text-blue-400";
+                let dateStr = item.timestamp instanceof Date ? item.timestamp.toLocaleTimeString('km-KH') : "";
+                return `
+                    <tr class="hover:bg-slate-800/40">
+                        <td class="px-4 py-4 font-semibold text-white">${escapeHtml(item.donor)}</td>
+                        <td class="px-4 py-4"><span class="px-2 py-1 rounded ${badgeClass} text-xs font-bold">${item.method}</span></td>
+                        <td class="px-4 py-4 text-emerald-400 font-bold">$${item.amount.toFixed(2)}</td>
+                        <td class="px-4 py-4 text-slate-400 max-w-[200px] truncate">${escapeHtml(item.message)}</td>
+                        <td class="px-4 py-4 text-slate-500 text-xs">${dateStr}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function calculateAndRenderLeaderboard(donations) {
+            const sums = {};
+            donations.forEach(d => { sums[d.donor] = (sums[d.donor] || 0) + d.amount; });
+            const sorted = Object.keys(sums).map(name => ({ name, total: sums[name] })).sort((a, b) => b.total - a.total).slice(0, 3);
+
+            const portalList = document.getElementById('leaderboard-list');
+            if (portalList) {
+                portalList.innerHTML = sorted.map((s, idx) => `
+                    <div class="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800">
+                        <span class="text-sm font-bold text-white">${idx+1}. ${escapeHtml(s.name)}</span>
+                        <span class="font-bold text-yellow-500 text-sm">$${s.total.toFixed(2)}</span>
+                    </div>
+                `).join('') || `<div class="text-center py-6 text-sm text-slate-500">មិនទាន់មានអ្នកឧបត្ថម្ភទេ</div>`;
+            }
+
+            const podium = document.getElementById('podium-container');
+            if (podium) {
+                podium.innerHTML = sorted.map((s, idx) => `
+                    <div class="relative animate-rank bg-slate-950/90 p-3 rounded-2xl flex items-center justify-between border border-slate-800">
+                        <span class="font-bold text-white text-xs">${idx+1}. ${escapeHtml(s.name)}</span>
+                        <span class="text-sm font-black text-emerald-400">$${s.total.toFixed(2)}</span>
+                    </div>
+                `).join('') || `<p class="text-xs text-slate-500 italic text-center">មិនទាន់មានការឧបត្ថម្ភ...</p>`;
+            }
+        }
+
+        let currentTargetValue = 250; let accumulatedRevenue = 0;
+        function updateStreamGoalUI(targetValue) {
+            currentTargetValue = targetValue;
+            if (document.getElementById('input-goal-target')) document.getElementById('input-goal-target').value = targetValue;
+            updateGoalProgressVisuals(accumulatedRevenue);
+        }
+
+        function updateGoalProgressVisuals(totalRevenue) {
+            accumulatedRevenue = totalRevenue;
+            const percentage = Math.min(Math.round((totalRevenue / currentTargetValue) * 100), 100);
+            const remaining = Math.max(0, currentTargetValue - totalRevenue);
+
+            if (document.getElementById('goal-percentage')) document.getElementById('goal-percentage').innerText = `${percentage}%`;
+            if (document.getElementById('goal-fraction-display')) document.getElementById('goal-fraction-display').innerText = `$${totalRevenue.toFixed(2)} / $${currentTargetValue.toFixed(2)}`;
+            if (document.getElementById('goal-progress-bar')) document.getElementById('goal-progress-bar').style.width = `${percentage}%`;
+            if (document.getElementById('goal-status-text')) document.getElementById('goal-status-text').innerText = `នៅសល់តែ $${remaining.toFixed(2)} ទៀតប៉ុណ្ណោះ!`;
+
+            if (document.getElementById('obs-goal-percentage')) document.getElementById('obs-goal-percentage').innerText = `${percentage}%`;
+            if (document.getElementById('obs-goal-fraction')) document.getElementById('obs-goal-fraction').innerText = `$${totalRevenue.toFixed(2)} / $${currentTargetValue.toFixed(2)}`;
+            if (document.getElementById('obs-goal-bar-fill')) document.getElementById('obs-goal-bar-fill').style.width = `${percentage}%`;
+        }
+
+        async function updateGoalTargetInDb() {
+            if (!db) return;
+            const inputVal = parseFloat(document.getElementById('input-goal-target').value);
+            if (!inputVal || inputVal < 10) { showToast("សូមបញ្ចូលទឹកប្រាក់គោលដៅឱ្យត្រឹមត្រូវ!", "error"); return; }
+            try {
+                await db.doc(goalConfigDocPath).set({ targetValue: inputVal }, { merge: true });
+                showToast("គោលដៅត្រូវបានកែប្រែជោគជ័យ!");
+            } catch (err) { showToast("មិនអាចកែប្រែទិន្នន័យបានទេ!", "error"); }
+        }
+
+        function selectAmount(amount) {
+            selectedPredefinedAmount = amount;
+            document.getElementById('customAmount').value = '';
+            document.querySelectorAll('.amount-btn').forEach(btn => {
+                btn.classList.replace('border-violet-600', 'border-slate-800');
+                if (parseFloat(btn.innerText.replace('$', '')) === amount) btn.classList.replace('border-slate-800', 'border-violet-600');
+            });
+        }
+
+        function clearAmountSelection() {
+            selectedPredefinedAmount = 0;
+            document.querySelectorAll('.amount-btn').forEach(btn => btn.classList.replace('border-violet-600', 'border-slate-800'));
+        }
+
+        function handleDonationSubmit(event) {
+            event.preventDefault();
+            const customVal = parseFloat(document.getElementById('customAmount').value);
+            const donationAmt = customVal > 0 ? customVal : selectedPredefinedAmount;
+            if (!donationAmt || donationAmt <= 0) { showToast("សូមជ្រើសរើសចំនួនទឹកប្រាក់!", "error"); return; }
+
+            const donorName = document.getElementById('donorName').value.trim();
+            const donorMessage = document.getElementById('donorMessage').value.trim();
+            const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+            const randomRef = `GP-${Math.floor(1000 + Math.random() * 9000)}`;
+
+            pendingTransaction = { donor: donorName || "សប្បុរសជន", amount: donationAmt, message: donorMessage || "ហេងហេងបង!", method: paymentMethod, ref: randomRef };
+            setupCheckoutModalUI(paymentMethod, donationAmt, randomRef);
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+
+        function setupCheckoutModalUI(method, amount, ref) {
+            document.getElementById('payment-amount-display').innerText = `$${amount.toFixed(2)}`;
+            document.getElementById('payment-ref-id').innerText = `#${ref}`;
+            const logo = document.getElementById('payment-logo-container');
+            logo.className = "w-9 h-9 rounded-lg flex items-center justify-center font-black text-white bg-" + (method === 'ABA' ? 'blue-600' : 'yellow-600');
+            logo.innerText = method === 'ABA' ? 'ABA' : 'ACL';
+            document.getElementById('payment-provider-title').innerText = method === 'ABA' ? "ABA Pay" : "ACLEDA ToanChet";
+        }
+
+        function closePaymentModal() { document.getElementById('paymentModal').classList.add('hidden'); pendingTransaction = null; }
+
+        async function confirmSimulatedPayment() {
+            if (!pendingTransaction) return;
+            const payload = { ...pendingTransaction, timestamp: firebase.firestore.FieldValue.serverTimestamp() };
+            if (!db) {
+                onDonationsDataUpdated([payload, ...currentLoadedDonations]);
+                document.getElementById('donationForm').reset(); clearAmountSelection(); closePaymentModal();
+                return;
+            }
+            try {
+                await db.collection(donationsCollectionPath).add(payload);
+                document.getElementById('donationForm').reset(); clearAmountSelection(); closePaymentModal();
+                showToast("ការឧបត្ថម្ភទទួលបានជោគជ័យ!");
+            } catch (err) { showToast("មានបញ្ហា!", "error"); }
+        }
+
+        function triggerLiveAlert(donation) {
+            const alertBox = document.getElementById('obs-alert-box');
+            if (!alertBox) return;
+            document.getElementById('obs-alert-donor-name').innerText = donation.donor;
+            document.getElementById('obs-alert-donor-amount').innerText = `$${donation.amount.toFixed(2)}`;
+            document.getElementById('obs-alert-donor-message').innerText = `« ${donation.message} »`;
+
+            alertBox.classList.remove('hidden');
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator(); osc.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+
+            if (speechSynth) {
+                speechSynth.cancel();
+                const utterance = new SpeechSynthesisUtterance(`អរគុណបង ${donation.donor} ចំនួន ${donation.amount} ដុល្លារ`);
+                utterance.lang = 'km-KH'; speechSynth.speak(utterance);
+            }
+            setTimeout(() => alertBox.classList.add('hidden'), 8000);
+        }
+
+        function simulateTestAlert() {
+            const mock = { donor: "សុខ ហេង", amount: 10.00, message: "ជូនពរបងហេងហេង!", method: "ABA" };
+            if (!db) { triggerLiveAlert(mock); return; }
+            db.collection(donationsCollectionPath).add({ ...mock, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+        }
+
+        async function confirmClearHistory() {
+            if (!db) { onDonationsDataUpdated([]); return; }
+            if (!confirm("តើអ្នកពិតជាចង់លុបទិន្នន័យទាំងអស់មែនទេ?")) return;
+            const snapshot = await db.collection(donationsCollectionPath).get();
+            const batch = db.batch(); snapshot.docs.forEach(doc => batch.delete(doc.ref)); await batch.commit();
+        }
+
+        function switchTab(tabId) {
+            if (currentView === 'donate' && tabId === 'dashboard-tab') return;
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+        }
+
+        function goToOverlayView() {
+            document.getElementById('main-platform-view').classList.add('hidden');
+            document.getElementById('obs-overlay-view').classList.remove('hidden');
+            document.body.style.backgroundColor = "transparent";
+        }
+
+        function exitOverlayView() {
+            document.getElementById('obs-overlay-view').classList.add('hidden');
+            document.getElementById('main-platform-view').classList.remove('hidden');
+            document.body.style.backgroundColor = "#090d16";
+        }
+
+        function copyToClipboard(elementId) {
+            const input = document.getElementById(elementId); temp = document.createElement('input');
+            temp.value = input.value; document.body.appendChild(temp); temp.select(); document.execCommand('copy');
+            document.body.removeChild(temp); showToast("បានចម្លងជោគជ័យ!");
+        }
+
+        function showToast(message, type = "success") {
+            const toast = document.getElementById('toastMessage'); document.getElementById('toast-text').innerText = message;
+            toast.className = `fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 text-white px-6 py-3 rounded-full font-bold shadow-lg transition-all duration-300 ${type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => toast.classList.add('opacity-0', 'pointer-events-none'), 3500);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+</html>
